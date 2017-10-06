@@ -28,7 +28,7 @@ def release_from_filename(filename):
         (filename, version, _) = match.groups()
 
     box = None
-    match = re.match('^(.*)\((Small|Large|Double)Case\)$', filename)
+    match = re.match('^(.*)\((Small|Medium|Large|Double)Case\)$', filename)
     if match != None:
         (filename, box) = match.groups()
 
