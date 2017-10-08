@@ -82,7 +82,7 @@ def get_tzx_release(tzx_filename, zip_release):
             machine = None
 
     part = None
-    match = re.match('^(.*) - (Part [12])$', tzx_filename)
+    match = re.match('^(.*) - (Part [123])$', tzx_filename)
     if match != None:
         (tzx_filename, part) = match.groups()
 
