@@ -8,19 +8,23 @@ import os
 import sys
 import zipfile
 
-def find_unused_filename(filename):
+def find_unused_filename(filename, extension):
     yield filename
     base = filename[:-4]
     n = 1
     while True:
-        yield '{}-{}.tzx'.format(base, n)
+        yield '{}-{}.{}'.format(base, n, extension)
         n += 1
 
-def ask_for_tzx_release(filename, zip_release):
-    print('Release info for tzx file {}?'.format(filename))
+def ask_for_tzx_details(filename, zip_release):
+    print('Details for tzx file {}?'.format(filename))
     return input('> ')
 
-def add_zip_file(filename, conn, zxdb_id, source, zip_release, tzx_detail_callback):
+def ask_for_trd_details(filename, zip_release):
+    print('Details for trd file {}?'.format(filename))
+    return input('> ')
+
+def add_zip_file(filename, conn, zxdb_id, source, zip_release, detail_callbacks):
     with open(filename, 'rb') as zip2:
         zip_data = zip2.read()
     zip_sha256 = hashlib.sha256(zip_data).hexdigest()
@@ -40,24 +44,28 @@ def add_zip_file(filename, conn, zxdb_id, source, zip_release, tzx_detail_callba
 
     with zipfile.ZipFile(filename) as zip:
         for zi in zip.infolist():
-            if (zi.filename.endswith('.tzx')):
-                tzx_release = tzx_detail_callback(zi.filename, zip_release)
-                print('Creating TZX file {} with release "{}"'.format(zi.filename, tzx_release))
-                with zip.open(zi) as tzxfile:
-                    tzx_data = tzxfile.read()
-                tzx_sha256 = hashlib.sha256(tzx_data).hexdigest()
-                for newfilename in find_unused_filename('tzx/{}'.format(zi.filename)):
+            if (zi.filename.endswith('.tzx') or zi.filename.endswith('.trd')):
+                extension = zi.filename[-3:]
+                details = detail_callbacks[extension](zi.filename, zip_release)
+                print('Creating {} file {} with details "{}"'.format(extension, zi.filename, details))
+                with zip.open(zi) as datafile:
+                    data = datafile.read()
+                data_sha256 = hashlib.sha256(data).hexdigest()
+                for newfilename in find_unused_filename('files/{}'.format(zi.filename), extension):
                     try:
                         with open(newfilename, 'xb') as newfile:
-                            newfile.write(tzx_data)
-                        basename = newfilename[4::]
-                        with contextlib.closing(conn.cursor()) as cursor:
-                            cursor.execute('INSERT INTO tzxs SET release_id = %s, details = %s, sha256 = %s, filename = %s', (zip_id, tzx_release, tzx_sha256, basename))
-                            conn.commit()
-                        break
+                            newfile.write(data)
+                        basename = newfilename[6::]
                     except:
                         # Try next filename
-                        pass
+                        continue
+                    
+                    with contextlib.closing(conn.cursor()) as cursor:
+                        cursor.execute('INSERT INTO files SET release_id = %s, type = %s, details = %s, sha256 = %s, filename = %s', (zip_id, extension, details, data_sha256, basename))
+                        conn.commit()
+                    break
+            else:
+                print('Skipping unknown file {}'.format(zi.filename))
 
 def main():
     DATABASE = 'archive'
@@ -80,7 +88,7 @@ def main():
     print('Release info for zip file {}?'.format(filename))
     zip_release = input('> ')
 
-    add_zip_file(filename, conn, zxdb_id, source, zip_release, ask_for_tzx_release)
+    add_zip_file(filename, conn, zxdb_id, source, zip_release, {'tzx': ask_for_tzx_details, 'trd': ask_for_trd_details})
 
 if __name__ == '__main__':
     main()

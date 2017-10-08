@@ -56,7 +56,7 @@ def release_from_filename(filename):
 
     return release
 
-def get_tzx_release(tzx_filename, zip_release):
+def get_tzx_details(tzx_filename, zip_release):
     tzx_filename = tzx_filename[:-4]
 
     match = re.match('^(.*) \(.*\)$', tzx_filename)
@@ -92,9 +92,12 @@ def get_tzx_release(tzx_filename, zip_release):
         (tzx_filename, players) = match.groups()
 
     release_strings = filter(lambda x: x != None, (tape, side, machine, part, players))
-    tzx_release = ', '.join(release_strings)
+    details = ', '.join(release_strings)
 
-    return tzx_release
+    return details
+
+def get_trd_details(trd_filename, zip_release):
+    return ''
 
 if len(sys.argv) < 2:
     print('Please give an Infoseek ID')
@@ -109,7 +112,7 @@ tree = html.fromstring(page.content)
 links = tree.xpath('//font[@size="+1"]/following-sibling::table/tr/td/font/a')
 gamefragment = links[0].attrib['href']
 
-if not gamefragment.endswith('.tzx.zip'):
+if not (gamefragment.endswith('.tzx.zip') or gamefragment.endswith('.trd.zip')):
     print('I got a link of {} which doesn\'t look right; bailing out'.format(gamefragment))
     sys.exit(1)
 
@@ -132,4 +135,4 @@ database_password = os.environ['DATABASE_PASSWORD']
 
 conn = mariadb.connect(database=DATABASE, user=DATABASE_USER, password=database_password)
 
-add_zip_file(filename, conn, infoseekid, 'WoS', release, get_tzx_release)
+add_zip_file(filename, conn, infoseekid, 'WoS', release, {'tzx': get_tzx_details, 'trd': get_trd_details})
